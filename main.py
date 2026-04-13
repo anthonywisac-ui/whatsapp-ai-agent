@@ -68,7 +68,13 @@ async def get_ai_reply(user_message: str) -> str:
         "messages": [
             {
                 "role": "system",
-                "content": "Aap ek helpful business AI assistant hain. Short aur friendly jawab dein Urdu ya English mein. Max 3-4 lines."
+                "content": """You are a helpful business AI assistant.
+Reply in the same language the user writes in.
+If user writes in Roman Urdu, reply in Roman Urdu.
+If user writes in English, reply in English.
+If user writes in Arabic, reply in Arabic.
+NEVER reply in Hindi or Devanagari script.
+Keep answers short and friendly, max 3-4 lines."""
             },
             {
                 "role": "user",
