@@ -58,7 +58,24 @@ async def handle_webhook(request: Request):
     return {"status": "ok"}
 
 async def get_ai_reply(user_message: str) -> str:
-    return f"Aapka message mila: {user_message} — AI jald aayega!"
+    print(f"🧠 Gemini call kar raha hoon...")
+    import google.generativeai as genai
+    import asyncio
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash",
+        system_instruction="Aap ek helpful business AI assistant hain. Short aur friendly jawab dein Urdu ya English mein. Maximum 3-4 lines."
+    )
+    for attempt in range(3):
+        try:
+            response = model.generate_content(user_message)
+            return response.text
+        except Exception as e:
+            if "429" in str(e) and attempt < 2:
+                print(f"⏳ Rate limit! Retry {attempt+1}...")
+                await asyncio.sleep(15)
+            else:
+                return "Maafi chahta hoon, abhi thodi der baad try karein! 🙏"
 
 async def send_whatsapp_message(to: str, message: str):
     print(f"📤 Message bhej raha hoon to {to}...")
