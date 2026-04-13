@@ -59,7 +59,6 @@ async def handle_webhook(request: Request):
 
 async def get_ai_reply(user_message: str) -> str:
     print("🧠 Groq Llama call kar raha hoon...")
-    import httpx
     headers = {
         "Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}",
         "Content-Type": "application/json"
