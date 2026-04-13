@@ -58,15 +58,7 @@ async def handle_webhook(request: Request):
     return {"status": "ok"}
 
 async def get_ai_reply(user_message: str) -> str:
-    print(f"🧠 Gemini call kar raha hoon...")
-    import google.generativeai as genai
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
-        system_instruction="Aap ek helpful AI assistant hain. Short aur friendly jawab dein Urdu aur English mein."
-    )
-    response = model.generate_content(user_message)
-    return response.text
+    return f"Aapka message mila: {user_message} — AI jald aayega!"
 
 async def send_whatsapp_message(to: str, message: str):
     print(f"📤 Message bhej raha hoon to {to}...")
