@@ -58,20 +58,34 @@ async def handle_webhook(request: Request):
     return {"status": "ok"}
 
 async def get_ai_reply(user_message: str) -> str:
-    print(f"🧠 Gemini Flash-Lite call kar raha hoon...")
-    import google.generativeai as genai
-    import asyncio
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash-lite",
-        system_instruction="Aap ek helpful business AI assistant hain. Short aur friendly jawab dein Urdu ya English mein. Maximum 3-4 lines."
-    )
-    try:
-        response = model.generate_content(user_message)
-        return response.text
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        return "Maafi chahta hoon, abhi thodi der baad try karein! 🙏"
+    print("🧠 Groq Llama call kar raha hoon...")
+    import httpx
+    headers = {
+        "Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [
+            {
+                "role": "system",
+                "content": "Aap ek helpful business AI assistant hain. Short aur friendly jawab dein Urdu ya English mein. Max 3-4 lines."
+            },
+            {
+                "role": "user",
+                "content": user_message
+            }
+        ]
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            json=payload,
+            headers=headers
+        ) as resp:
+            result = await resp.json()
+            return result["choices"][0]["message"]["content"]
+
 async def send_whatsapp_message(to: str, message: str):
     print(f"📤 Message bhej raha hoon to {to}...")
     url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
