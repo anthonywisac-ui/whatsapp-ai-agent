@@ -1,0 +1,90 @@
+import os
+import aiohttp
+from dotenv import load_dotenv
+from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
+import uvicorn
+import traceback
+
+load_dotenv()
+
+app = FastAPI()
+
+VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFICATION_TOKEN")
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+
+print(f"🔑 Token: {WHATSAPP_TOKEN[:20] if WHATSAPP_TOKEN else 'MISSING!'}...")
+print(f"📱 Phone ID: {WHATSAPP_PHONE_NUMBER_ID}")
+print(f"🔐 Verify Token: {VERIFY_TOKEN}")
+
+@app.get("/webhook")
+async def verify_webhook(request: Request):
+    params = dict(request.query_params)
+    if params.get("hub.verify_token") == VERIFY_TOKEN:
+        print("✅ Webhook Verified!")
+        return PlainTextResponse(params.get("hub.challenge", ""))
+    return PlainTextResponse("Forbidden", status_code=403)
+
+@app.post("/webhook")
+async def handle_webhook(request: Request):
+    data = await request.json()
+    print(f"📩 Raw data: {data}")
+
+    try:
+        entry = data["entry"][0]["changes"][0]["value"]
+        print(f"📦 Entry: {entry}")
+
+        if "messages" in entry:
+            message = entry["messages"][0]
+            sender = message["from"]
+            msg_type = message.get("type", "")
+            print(f"👤 Sender: {sender}, Type: {msg_type}")
+
+            if msg_type == "text":
+                text = message["text"]["body"]
+                print(f"💬 Message: {text}")
+
+                reply = await get_ai_reply(text)
+                print(f"🤖 AI Reply: {reply}")
+
+                await send_whatsapp_message(sender, reply)
+                print(f"✅ Reply bhej diya!")
+
+    except Exception as e:
+        print(f"❌ ERROR: {e}")
+        print(traceback.format_exc())
+
+    return {"status": "ok"}
+
+async def get_ai_reply(user_message: str) -> str:
+    print(f"🧠 Gemini call kar raha hoon...")
+    import google.generativeai as genai
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash",
+        system_instruction="Aap ek helpful AI assistant hain. Short aur friendly jawab dein Urdu aur English mein."
+    )
+    response = model.generate_content(user_message)
+    return response.text
+
+async def send_whatsapp_message(to: str, message: str):
+    print(f"📤 Message bhej raha hoon to {to}...")
+    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "text",
+        "text": {"body": message}
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=payload, headers=headers) as resp:
+            result = await resp.json()
+            print(f"📬 Result: {result}")
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
