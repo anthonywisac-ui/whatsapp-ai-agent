@@ -153,5 +153,22 @@ async def twilio_sms(request: Request):
     print(f"📱 Twilio SMS from {from_number}: {body}")
     return {"status": "ok"}
 
+@app.post("/twilio-call")
+async def twilio_call(request: Request):
+    from fastapi.responses import HTMLResponse
+    print("📞 Twilio call aai!")
+    twiml = """<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say voice="alice" language="en-US">
+        Hello! You have reached our AI assistant. 
+        Please leave your message after the beep.
+        We will call you back shortly. Thank you!
+    </Say>
+    <Pause length="1"/>
+    <Say voice="alice">Goodbye!</Say>
+</Response>"""
+    return HTMLResponse(content=twiml, media_type="application/xml")
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
