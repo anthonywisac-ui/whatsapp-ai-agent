@@ -145,5 +145,13 @@ async def send_whatsapp_message(to: str, message: str):
             result = await resp.json()
             print(f"📬 Result: {result}")
 
+@app.post("/twilio-sms")
+async def twilio_sms(request: Request):
+    form = await request.form()
+    body = form.get("Body", "")
+    from_number = form.get("From", "")
+    print(f"📱 Twilio SMS from {from_number}: {body}")
+    return {"status": "ok"}
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
