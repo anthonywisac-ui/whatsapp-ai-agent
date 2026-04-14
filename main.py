@@ -29,13 +29,24 @@ async def verify_webhook(request: Request):
 @app.post("/webhook")
 async def handle_webhook(request: Request):
     data = await request.json()
-    print(f"📩 Raw data: {data}")
+    print(f"📩 Incoming: {data}")
 
     try:
         entry = data["entry"][0]["changes"][0]["value"]
-        print(f"📦 Entry: {entry}")
 
-        if "messages" in entry:
+        # ── CALLS ──────────────────────────────
+        if "calls" in entry:
+            call = entry["calls"][0]
+            caller = call["from"]
+            call_id = call["id"]
+            print(f"📞 Call from: {caller}")
+            greeting = await get_ai_response_voice(
+                "Customer ne call kiya. Short greeting do."
+            )
+            print(f"🤖 Voice Greeting: {greeting}")
+
+        # ── MESSAGES ───────────────────────────
+        elif "messages" in entry:
             message = entry["messages"][0]
             sender = message["from"]
             msg_type = message.get("type", "")
@@ -44,10 +55,8 @@ async def handle_webhook(request: Request):
             if msg_type == "text":
                 text = message["text"]["body"]
                 print(f"💬 Message: {text}")
-
                 reply = await get_ai_reply(text)
                 print(f"🤖 AI Reply: {reply}")
-
                 await send_whatsapp_message(sender, reply)
                 print(f"✅ Reply bhej diya!")
 
@@ -57,6 +66,32 @@ async def handle_webhook(request: Request):
 
     return {"status": "ok"}
 
+# ── Voice AI Response ───────────────────────────────────────────────
+async def get_ai_response_voice(prompt: str) -> str:
+    headers = {
+        "Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [
+            {
+                "role": "system",
+                "content": "Voice assistant ho. Roman Urdu ya English mein jawab do. Max 1-2 sentences."
+            },
+            {"role": "user", "content": prompt}
+        ]
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            json=payload,
+            headers=headers
+        ) as resp:
+            result = await resp.json()
+            return result["choices"][0]["message"]["content"]
+
+# ── Chat AI Response ────────────────────────────────────────────────
 async def get_ai_reply(user_message: str) -> str:
     print("🧠 Groq Llama call kar raha hoon...")
     headers = {
@@ -91,6 +126,7 @@ Keep answers short and friendly, max 3-4 lines."""
             result = await resp.json()
             return result["choices"][0]["message"]["content"]
 
+# ── Send WhatsApp Message ───────────────────────────────────────────
 async def send_whatsapp_message(to: str, message: str):
     print(f"📤 Message bhej raha hoon to {to}...")
     url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
