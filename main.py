@@ -10,15 +10,18 @@ from fastapi.responses import PlainTextResponse, HTMLResponse
 import uvicorn
 
 # Pipecat imports for voice
-from pipecat.transports.whatsapp.transport import WhatsAppTransport
-from pipecat.services.groq import GroqLLMService
-from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
-from pipecat.pipeline.pipeline import Pipeline
-from pipecat.pipeline.task import PipelineTask
-from pipecat.pipeline.runner import PipelineRunner
-from pipecat.transports.whatsapp.api import WhatsAppApi
-from pipecat.transports.whatsapp.client import WhatsAppClient
-from pipecat.transports.whatsapp.webhook import WhatsAppWebhookRequest
+# NOTE: pipecat.transports.whatsapp does not exist in any released version of
+# pipecat-ai. These imports are commented out so the service can start.
+# Voice call handling can be re-enabled once a compatible library is available.
+# from pipecat.transports.whatsapp.transport import WhatsAppTransport
+# from pipecat.transports.whatsapp.api import WhatsAppApi
+# from pipecat.transports.whatsapp.client import WhatsAppClient
+# from pipecat.transports.whatsapp.webhook import WhatsAppWebhookRequest
+# from pipecat.services.groq import GroqLLMService
+# from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+# from pipecat.pipeline.pipeline import Pipeline
+# from pipecat.pipeline.task import PipelineTask
+# from pipecat.pipeline.runner import PipelineRunner
 
 load_dotenv()
 
@@ -290,20 +293,11 @@ async def handle_incoming_call(call_data: dict):
     from_number = call_data.get("contacts", [{}])[0].get("wa_id")
     print(f"📞 Incoming call from {from_number}, call_id: {call_id}")
 
-    transport = WhatsAppTransport(
-        whatsapp_token=WHATSAPP_TOKEN,
-        phone_number_id=WHATSAPP_PHONE_NUMBER_ID,
-        app_secret=APP_SECRET,
-        call_id=call_id,
-        webhook_endpoint="/voice-webhook"
-    )
-    stt = DeepgramSTTService(api_key=DEEPGRAM_API_KEY)
-    llm = GroqLLMService(api_key=GROQ_API_KEY, model="llama3-8b-8192")
-    tts = DeepgramTTSService(api_key=DEEPGRAM_API_KEY, voice="aura-asteria-en")
-    pipeline = Pipeline([stt, llm, tts])
-    task = PipelineTask(pipeline, transport=transport)
-    runner = PipelineRunner()
-    await runner.run(task)
+    # Voice call handling is not yet implemented.
+    # WhatsAppTransport and the associated pipecat pipeline classes are
+    # unavailable in the current version of pipecat-ai. Re-enable the imports
+    # and the code below once a compatible library is in place.
+    print("⚠️  Voice call handling is disabled — pipecat WhatsApp transport not available.")
 
 # ---------- Main Webhook (Handles both messages and calls) ----------
 @app.get("/webhook")
