@@ -20,9 +20,8 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# Build wheels for av and other dependencies
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /wheels av && \
-    pip install --no-cache-dir cython && \
+# Install dependencies
+RUN pip install --no-cache-dir cython && \
     pip install --no-cache-dir -r requirements.txt
 
 # Stage 2: Final Stage
@@ -37,10 +36,6 @@ WORKDIR /app
 
 # Copy installed packages from builder stage
 COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=builder /wheels /wheels
-
-# Install any remaining packages from wheels
-RUN pip install --no-cache-dir /wheels/*.whl
 
 COPY . .
 
