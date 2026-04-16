@@ -6,14 +6,6 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import PlainTextResponse
 import uvicorn
 
-# Pipecat imports (voice ke liye)
-from pipecat.transports.whatsapp import WhatsAppTransport
-from pipecat.services.groq import GroqLLMService
-from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
-from pipecat.pipeline.pipeline import Pipeline
-from pipecat.pipeline.task import PipelineTask
-from pipecat.pipeline.runner import PipelineRunner
-
 load_dotenv()
 
 app = FastAPI()
