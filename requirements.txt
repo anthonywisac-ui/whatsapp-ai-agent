@@ -5,5 +5,5 @@ python-dotenv==1.0.0
 python-multipart==0.0.9
 groq
 deepgram-sdk
-pipecat-ai[webrtc,whatsapp]==0.0.83
+pipecat-ai[webrtc,whatsapp]==0.0.60
 
