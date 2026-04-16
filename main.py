@@ -2,30 +2,93 @@ import os
 import aiohttp
 import traceback
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import PlainTextResponse
 import uvicorn
+
+# Pipecat imports (voice ke liye)
+from pipecat.transports.whatsapp import WhatsAppTransport
+from pipecat.services.groq import GroqLLMService
+from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.task import PipelineTask
+from pipecat.pipeline.runner import PipelineRunner
 
 load_dotenv()
 
 app = FastAPI()
 
+# Environment variables
 VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFICATION_TOKEN")
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+APP_SECRET = os.getenv("WHATSAPP_APP_SECRET")
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-RESTAURANT_BOT_URL = "https://restaurant-bot-production-a133.up.railway.app/webhook"
+RESTAURANT_BOT_URL = "https://restaurant-bot-production-a133.up.railway.app/voice-webhook"
 
 print(f"🔑 Token: {WHATSAPP_TOKEN[:20] if WHATSAPP_TOKEN else 'MISSING!'}...")
 print(f"📱 Phone ID: {WHATSAPP_PHONE_NUMBER_ID}")
 print(f"🔐 Verify Token: {VERIFY_TOKEN}")
 
+# ==================== VOICE WEBHOOK (for calls) ====================
+@app.get("/voice-webhook")
+async def verify_voice_webhook(request: Request):
+    mode = request.query_params.get("hub.mode")
+    token = request.query_params.get("hub.verify_token")
+    challenge = request.query_params.get("hub.challenge")
+    
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        print("✅ Voice webhook verified!")
+        return Response(content=challenge, status_code=200)
+    return Response(status_code=403)
+
+@app.post("/voice-webhook")
+async def handle_voice_webhook(request: Request):
+    try:
+        data = await request.json()
+        print(f"📞 Voice webhook data: {data}")
+        
+        if "entry" in data:
+            for entry in data["entry"]:
+                for change in entry.get("changes", []):
+                    if change.get("field") == "calls":
+                        call_data = change.get("value", {})
+                        await handle_incoming_call(call_data)
+        return Response(status_code=200)
+    except Exception as e:
+        print(f"❌ Voice webhook error: {e}")
+        return Response(status_code=200)
+
+async def handle_incoming_call(call_data: dict):
+    call_id = call_data.get("calls", [{}])[0].get("id")
+    from_number = call_data.get("contacts", [{}])[0].get("wa_id")
+    print(f"📞 Incoming call from {from_number}, call_id: {call_id}")
+    
+    transport = WhatsAppTransport(
+        whatsapp_token=WHATSAPP_TOKEN,
+        phone_number_id=WHATSAPP_PHONE_NUMBER_ID,
+        app_secret=APP_SECRET,
+        call_id=call_id,
+        webhook_endpoint="/voice-webhook"
+    )
+    
+    stt = DeepgramSTTService(api_key=DEEPGRAM_API_KEY)
+    llm = GroqLLMService(api_key=GROQ_API_KEY, model="llama3-8b-8192")
+    tts = DeepgramTTSService(api_key=DEEPGRAM_API_KEY, voice="aura-asteria-en")
+    
+    pipeline = Pipeline([stt, llm, tts])
+    task = PipelineTask(pipeline, transport=transport)
+    runner = PipelineRunner()
+    await runner.run(task)
+
+# ==================== MESSAGE WEBHOOK (for texts) ====================
 @app.get("/webhook")
 async def verify_webhook(request: Request):
     params = dict(request.query_params)
     if params.get("hub.verify_token") == VERIFY_TOKEN:
-        print("✅ Webhook Verified!")
+        print("✅ Message webhook verified!")
         return PlainTextResponse(params.get("hub.challenge", ""))
     return PlainTextResponse("Forbidden", status_code=403)
 
@@ -33,86 +96,32 @@ async def verify_webhook(request: Request):
 async def handle_webhook(request: Request):
     data = await request.json()
     print(f"📩 Incoming: {data}")
-
+    
     try:
         entry = data["entry"][0]["changes"][0]["value"]
-
-        # Calls handle karo
+        
         if "calls" in entry:
             call = entry["calls"][0]
             caller = call["from"]
             print(f"📞 Call from: {caller}")
-
-        # Messages handle karo
         elif "messages" in entry:
             message = entry["messages"][0]
             sender = message["from"]
             msg_type = message.get("type", "")
             print(f"👤 Sender: {sender}, Type: {msg_type}")
-
-            # Sab messages restaurant bot pe forward karo
-            print(f"🍽️ Restaurant bot pe forward kar raha hoon...")
+            print(f"🍽️ Forwarding to restaurant bot...")
             async with aiohttp.ClientSession() as fwd:
                 await fwd.post(RESTAURANT_BOT_URL, json=data)
-
     except Exception as e:
         print(f"❌ ERROR: {e}")
         print(traceback.format_exc())
-
+    
     return {"status": "ok"}
 
-async def get_ai_reply(user_message: str) -> str:
-    print("🧠 Groq Llama call kar raha hoon...")
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "llama-3.1-8b-instant",
-        "messages": [
-            {
-                "role": "system",
-                "content": """You are a helpful business AI assistant.
-Reply in the same language the user writes in.
-If user writes in Roman Urdu, reply in Roman Urdu.
-If user writes in English, reply in English.
-NEVER reply in Hindi or Devanagari script.
-Keep answers short and friendly, max 3-4 lines."""
-            },
-            {"role": "user", "content": user_message}
-        ]
-    }
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            json=payload,
-            headers=headers
-        ) as resp:
-            result = await resp.json()
-            return result["choices"][0]["message"]["content"]
-
-async def send_whatsapp_message(to: str, message: str):
-    print(f"📤 Message bhej raha hoon to {to}...")
-    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
-    headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": to,
-        "type": "text",
-        "text": {"body": message}
-    }
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=payload, headers=headers) as resp:
-            result = await resp.json()
-            print(f"📬 Result: {result}")
-
+# ==================== TWILIO (optional) ====================
 @app.post("/twilio-call")
 async def twilio_call(request: Request):
     from fastapi.responses import HTMLResponse
-    print("📞 Twilio call aai!")
     twiml = """<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="alice" language="en-US">
