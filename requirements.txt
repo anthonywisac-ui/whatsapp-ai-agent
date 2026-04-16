@@ -6,3 +6,4 @@ python-multipart==0.0.9
 groq
 deepgram-sdk
 pipecat-ai[webrtc]==0.0.83
+pipecat-ai[whatsapp]==0.0.60
