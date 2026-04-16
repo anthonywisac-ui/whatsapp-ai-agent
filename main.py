@@ -10,7 +10,7 @@ from fastapi.responses import PlainTextResponse, HTMLResponse
 import uvicorn
 
 # Pipecat imports for voice
-from pipecat.transports.whatsapp import WhatsAppTransport
+from pipecat.transports.whatsapp.transport import WhatsAppTransport
 from pipecat.services.groq import GroqLLMService
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat.pipeline.pipeline import Pipeline
