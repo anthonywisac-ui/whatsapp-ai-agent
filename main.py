@@ -16,6 +16,9 @@ from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineTask
 from pipecat.pipeline.runner import PipelineRunner
+from pipecat.transports.whatsapp.api import WhatsAppApi
+from pipecat.transports.whatsapp.client import WhatsAppClient
+from pipecat.transports.whatsapp.webhook import WhatsAppWebhookRequest
 
 load_dotenv()
 
