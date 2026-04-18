@@ -20,6 +20,19 @@ print(f"🔑 Token: {WHATSAPP_TOKEN[:20] if WHATSAPP_TOKEN else 'MISSING!'}...")
 print(f"📱 Phone ID: {WHATSAPP_PHONE_NUMBER_ID}")
 print(f"🔐 Verify Token: {VERIFY_TOKEN}")
 
+RESTAURANT_PHONE_ID = "1128408277019776"  # Restaurant bot number
+
+# handle_webhook mein:
+phone_id = data["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
+
+if phone_id == RESTAURANT_PHONE_ID:
+    # Already restaurant bot ka message — ignore
+    return {"status": "ok"}
+
+# Forward to restaurant bot
+async with aiohttp.ClientSession() as fwd:
+    await fwd.post(RESTAURANT_BOT_URL, json=data)
+
 @app.get("/webhook")
 async def verify_webhook(request: Request):
     params = dict(request.query_params)
