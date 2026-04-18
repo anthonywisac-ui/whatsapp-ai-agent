@@ -12,6 +12,7 @@ Local path:    C:\\Users\\DAIC\\whatsapp-ai-agent\\main.py
 """
 
 import os
+import json
 import re
 import traceback
 import aiohttp
@@ -56,9 +57,9 @@ async def verify_webhook(request: Request):
 # ── MAIN WEBHOOK HANDLER ─────────────────────────────────────────
 @app.post("/webhook")
 async def handle_webhook(request: Request):
-    raw_body = await request.body()
     try:
-        data = await request.json()
+        raw_body = await request.body()
+        data = json.loads(raw_body)
     except Exception:
         print("⚠️ Non-JSON webhook received")
         return {"status": "ok"}
