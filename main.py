@@ -30,7 +30,7 @@ WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "1100639706460130")
 
 # Manager — hardcoded fallback kept for safety
-MANAGER_NUMBER = os.getenv("MANAGER_NUMBER", "923351021321")
+MANAGER_NUMBER = os.getenv("MANAGER_NUMBER", "923351021321").lstrip("+")  # Meta sends numbers without +
 
 # Where the restaurant-bot lives
 RESTAURANT_BOT_URL = os.getenv(
